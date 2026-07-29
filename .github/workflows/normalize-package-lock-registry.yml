@@ -22,9 +22,14 @@ jobs:
           set -euo pipefail
 
           if [ -z "${BEFORE:-}" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            mapfile -t files < <(git ls-files '**/package-lock.json')
+            mapfile -t files < <(
+              git ls-files -- 'package-lock.json' ':(glob)**/package-lock.json'
+            )
           else
-            mapfile -t files < <(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- '**/package-lock.json')
+            mapfile -t files < <(
+              git diff --name-only "$BEFORE" "$GITHUB_SHA" -- \
+                'package-lock.json' ':(glob)**/package-lock.json'
+            )
           fi
 
           if [ ${#files[@]} -eq 0 ]; then
