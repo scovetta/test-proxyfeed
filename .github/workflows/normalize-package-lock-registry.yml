@@ -34,7 +34,11 @@ jobs:
 
           for file in "${files[@]}"; do
             [ -f "$file" ] || continue
-            perl -i -pe "s#https?://(?!registry\\.npmjs\\.com)([^/\\\"'[:space:]]+)#https://registry.npmjs.com#g" "$file"
+            sed -E -i \
+              -e 's#https?://registry\.npmjs\.com#__NPM_REGISTRY_PLACEHOLDER__#g' \
+              -e 's#https?://[^/"'"'"'[:space:]]+#https://registry.npmjs.com#g' \
+              -e 's#__NPM_REGISTRY_PLACEHOLDER__#https://registry.npmjs.com#g' \
+              "$file"
           done
 
           if git diff --quiet -- "${files[@]}"; then
