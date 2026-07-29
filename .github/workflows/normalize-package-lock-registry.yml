@@ -1,7 +1,13 @@
 name: Normalize package-lock registry URLs
 
+# WARNING: This workflow auto-commits and auto-pushes changes without human review.
+# Only run on trusted branches (main). Monitor for suspicious package-lock.json changes
+# that could indicate supply chain manipulation.
+
 on:
   push:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -11,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
 
@@ -37,13 +43,25 @@ jobs:
             exit 0
           fi
 
+          # List of regex patterns to normalize registry URLs
+          # Each pattern matches a specific domain + path combination
+          declare -a REGISTRY_PATTERNS=(
+            's#https?://[^/]+\.pkgs\.visualstudio\.com/1es-public/_packaging/npm-public/npm/registry/#https://registry.npmjs.com/#g'
+          )
+
           for file in "${files[@]}"; do
             [ -f "$file" ] || continue
-            sed -E -i \
-              -e 's#https?://registry\.npmjs\.com#__NPM_REGISTRY_PLACEHOLDER__#g' \
-              -e 's#https?://[^/"'"'"'[:space:]]+#https://registry.npmjs.com#g' \
-              -e 's#__NPM_REGISTRY_PLACEHOLDER__#https://registry.npmjs.com#g' \
-              "$file"
+            
+            # Apply registry normalization patterns
+            for pattern in "${REGISTRY_PATTERNS[@]}"; do
+              sed -E -i "$pattern" "$file"
+            done
+            
+            # Validate that the file is still valid JSON after modifications
+            if ! jq empty "$file" 2>/dev/null; then
+              echo "ERROR: $file is not valid JSON after normalization"
+              exit 1
+            fi
           done
 
           if git diff --quiet -- "${files[@]}"; then
